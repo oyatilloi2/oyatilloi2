@@ -48,5 +48,5 @@ messages/*.d.json.ts
 .content-collections
 
 # local mdx fixture, never published
-content/posts/_*.mdx
+content/notes/_*.mdx
 public/_*.png

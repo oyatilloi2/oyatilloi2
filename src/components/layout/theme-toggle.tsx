@@ -14,6 +14,7 @@ export function ThemeToggle() {
   // That keeps the markup stable across hydration without a mounted flag.
   return (
     <Button
+      className={"cursor-pointer"}
       variant="ghost"
       size="icon-sm"
       aria-label={t("label")}

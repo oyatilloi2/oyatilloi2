@@ -1,7 +1,7 @@
 import { Feed } from "feed";
 import { getTranslations } from "next-intl/server";
 import { site } from "@/config/site";
-import { getPosts } from "@/lib/posts";
+import { getNotes } from "@/lib/notes";
 
 // Nothing here depends on the request, so the feed is written at build time.
 export const dynamic = "force-static";
@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 export async function GET() {
   const t = await getTranslations("Site");
 
-  // One feed for the whole site. A post written in Uzbek appears in it like
+  // One feed for the whole site. A note written in Uzbek appears in it like
   // any other; the feed language describes the site, not each item, because
   // RSS 2.0 has no per-item language and `feed` emits none.
   const feed = new Feed({
@@ -23,16 +23,16 @@ export async function GET() {
     author: { name: site.name, link: site.url },
   });
 
-  for (const post of getPosts()) {
-    const url = `${site.url}/blog/${post.slug}`;
+  for (const note of getNotes()) {
+    const url = `${site.url}/notes/${note.slug}`;
 
     feed.addItem({
       id: url,
       link: url,
-      title: post.title,
-      description: post.description,
-      date: new Date(post.date),
-      category: post.tags.map((tag) => ({ name: tag })),
+      title: note.title,
+      description: note.description,
+      date: new Date(note.date),
+      category: note.tags.map((tag) => ({ name: tag })),
     });
   }
 

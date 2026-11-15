@@ -1,28 +1,28 @@
-import type { Post } from "content-collections";
+import type { Note } from "content-collections";
 import Link from "next/link";
-import { PostMeta } from "@/components/blog/post-meta";
+import { NoteMeta } from "@/components/notes/note-meta";
 
 /**
- * Bordered card for the blog listing. The title link is stretched over the
+ * Bordered card for the notes listing. The title link is stretched over the
  * whole card with a pseudo-element, so the card is one click target while
  * the link's accessible name stays just the title.
  */
-export function PostCard({ post }: { post: Post }) {
+export function NoteCard({ note }: { note: Note }) {
   return (
     <article
-      lang={post.language}
+      lang={note.language}
       className="relative flex flex-col gap-2 rounded-lg border border-border p-4 transition duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:bg-muted/50 hover:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2"
     >
       <h3 className="text-lg font-medium">
         <Link
-          href={`/blog/${post.slug}`}
+          href={`/notes/${note.slug}`}
           className="transition-colors outline-none after:absolute after:inset-0 hover:text-brand"
         >
-          {post.title}
+          {note.title}
         </Link>
       </h3>
-      <PostMeta date={post.date} readingTime={post.readingTime} />
-      <p className="text-muted-foreground">{post.description}</p>
+      <NoteMeta date={note.date} readingTime={note.readingTime} />
+      <p className="text-muted-foreground">{note.description}</p>
     </article>
   );
 }

@@ -1,13 +1,13 @@
 import { ImageResponse } from "next/og";
 import { site } from "@/config/site";
-import { getPost, getPosts } from "@/lib/posts";
+import { getNote, getNotes } from "@/lib/notes";
 
 export const alt = site.name;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export function generateStaticParams() {
-  return getPosts().map((post) => ({ slug: post.slug }));
+  return getNotes().map((note) => ({ slug: note.slug }));
 }
 
 export default async function Image({
@@ -16,7 +16,7 @@ export default async function Image({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPost(slug);
+  const note = getNote(slug);
 
   return new ImageResponse(
     <div
@@ -32,7 +32,7 @@ export default async function Image({
       }}
     >
       <div style={{ fontSize: 56, lineHeight: 1.2 }}>
-        {post?.title ?? site.name}
+        {note?.title ?? site.name}
       </div>
       <div style={{ display: "flex", fontSize: 28, color: "#a1a1a1" }}>
         {site.name}

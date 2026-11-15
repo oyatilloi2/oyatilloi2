@@ -1,12 +1,12 @@
 /**
- * The WebGL half of the home page hero: one cloud of particles that keeps
- * rearranging itself into the things the site is about — a code glyph, the
- * React atom, a globe with Tashkent marked on it, a written page. It moves
- * on by itself, or when asked; the cloud parts around the pointer.
+ * The WebGL half of the home page hero: one cloud of particles that gathers
+ * into the "i2" mark. The cloud parts around the pointer; a click bursts it
+ * apart and it gathers again.
  *
  * This module is the only place three.js is imported, and it is only ever
  * reached through `import()` from hero-scene.tsx — so the library is a lazy
- * chunk and never part of the page's initial JavaScript. See docs/adr/0005.
+ * chunk and never part of the page's initial JavaScript. See docs/adr/0005
+ * and docs/adr/0006.
  */
 import {
   AdditiveBlending,
@@ -20,6 +20,7 @@ import {
   Vector2,
   WebGLRenderer,
 } from "three";
+import { I2_MARK } from "@/lib/i2-mark";
 
 const VERTEX = /* glsl */ `
 uniform float uTime;
@@ -33,10 +34,9 @@ attribute vec4 aFrom;
 attribute vec4 aTo;
 attribute float aSeed;
 varying float vAccent;
-varying float vHue;
 
 void main() {
-  // Each particle leaves on its own schedule, so a shape dissolves and
+  // Each particle leaves on its own schedule, so the mark dissolves and
   // reassembles as a wave instead of sliding across as one rigid piece.
   float t = clamp(uProgress * 1.35 - aSeed * 0.35, 0.0, 1.0);
   t = t * t * (3.0 - 2.0 * t);
@@ -50,7 +50,7 @@ void main() {
     sin(aSeed * 33.1 - uTime * 0.7)
   );
   p += swirl * sin(t * 3.14159) * 0.55;
-  // At rest it still drifts a hair, so a finished shape is never frozen.
+  // At rest it still drifts a hair, so the finished mark is never frozen.
   p += 0.012 * vec3(
     sin(uTime * 1.3 + aSeed * 40.0),
     cos(uTime * 1.1 + aSeed * 60.0),
@@ -65,7 +65,6 @@ void main() {
   float near = smoothstep(0.38, 0.0, length(away));
   mv.xy += normalize(away + 1e-5) * near * uPull * 0.3;
 
-  vHue = p.x * 0.16 + p.y * 0.2 + aSeed * 0.12 + uTime * 0.02;
   float pulse = 1.0 + vAccent * (0.4 + 0.3 * sin(uTime * 3.0 + aSeed * 20.0));
   gl_PointSize = (1.3 + 1.7 * fract(aSeed * 7.3)) * pulse * uScale / -mv.z;
   gl_Position = projectionMatrix * mv;
@@ -75,31 +74,30 @@ void main() {
 const FRAGMENT = /* glsl */ `
 uniform float uTheme; // 0 = light page, 1 = dark page
 varying float vAccent;
-varying float vHue;
 
 void main() {
   float disc = smoothstep(0.5, 0.2, length(gl_PointCoord - 0.5));
 
-  // One cosine palette walking pink → violet → blue → cyan.
-  vec3 hue = vec3(0.5, 0.45, 0.85)
-    + vec3(0.4, 0.35, 0.15) * cos(6.28318 * (vHue + 0.35 + vec3(-0.1, 0.2, 0.55)));
+  // The page's own ink, with the site's one accent on the dot of the "i"
+  // (--foreground and --brand in globals.css, per theme).
+  vec3 ink = mix(vec3(0.09, 0.09, 0.1), vec3(0.95, 0.96, 0.98), uTheme);
+  vec3 brand = mix(vec3(0.15, 0.39, 0.92), vec3(0.45, 0.68, 1.0), uTheme);
 
-  // Dark page: the palette as light. Light page: the same hues pulled toward
-  // ink, because pale dots vanish on white.
-  vec3 dark = mix(hue, vec3(1.0, 0.8, 0.92), vAccent);
-  vec3 light = mix(hue * 0.6 + vec3(0.02, 0.04, 0.22), vec3(0.86, 0.1, 0.5), vAccent);
-
-  gl_FragColor = vec4(mix(light, dark, uTheme), disc * mix(0.9, 0.8, uTheme));
+  gl_FragColor = vec4(mix(ink, brand, vAccent), disc * mix(0.9, 0.6, uTheme));
 }
 `;
 
 const rand = Math.random;
 const TAU = Math.PI * 2;
 const RADIUS = 1.25;
-/** Share of the cloud that never joins a shape and stays as drifting dust. */
+/** Share of the cloud that never joins the mark and stays as drifting dust. */
 const DUST_SHARE = 0.08;
 
-/** A shape fills `out` (x, y, z, accent per particle) for the first `count`. */
+/**
+ * A shape fills `out` (x, y, z, accent per particle) for the first `count`.
+ * `out` arrives holding the positions the cloud is leaving, so a shape may
+ * build on them.
+ */
 type Shape = (out: Float32Array, count: number) => void;
 
 const put = (
@@ -127,12 +125,28 @@ const scatter: Shape = (out, count) => {
   }
 };
 
+/** Every particle thrown outward from where it is now: the click. */
+const burst: Shape = (out, count) => {
+  for (let i = 0; i < count; i++) {
+    const k = 1.8 + rand() * 1.2;
+    put(
+      out,
+      i,
+      out[i * 4] * k + (rand() - 0.5) * 0.6,
+      out[i * 4 + 1] * k + (rand() - 0.5) * 0.6,
+      out[i * 4 + 2] + (rand() - 0.5) * 2.5,
+      out[i * 4 + 3],
+    );
+  }
+};
+
 /**
  * Turns a 2D drawing into a shape: draw it on a small offscreen canvas, then
  * drop particles on the painted pixels and give the result some thickness.
+ * Pixels painted with red in them become highlighted particles.
  */
 const drawn =
-  (draw: (ctx: CanvasRenderingContext2D) => void): Shape =>
+  (draw: (ctx: CanvasRenderingContext2D, size: number) => void): Shape =>
   (out, count) => {
     const size = 240;
     const canvas = document.createElement("canvas");
@@ -140,8 +154,7 @@ const drawn =
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return scatter(out, count);
 
-    ctx.lineCap = ctx.lineJoin = "round";
-    draw(ctx);
+    draw(ctx, size);
     const { data } = ctx.getImageData(0, 0, size, size);
     const painted: number[] = [];
     for (let p = 0; p < size * size; p++) {
@@ -153,173 +166,57 @@ const drawn =
       const p = painted[Math.floor(rand() * painted.length)];
       const x = (((p % size) + rand()) / size) * 2 - 1;
       const y = 1 - ((Math.floor(p / size) + rand()) / size) * 2;
-      put(out, i, x * RADIUS * 1.1, y * RADIUS * 1.1, (rand() - 0.5) * 0.22);
-    }
-  };
-
-const line = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  points: number[],
-) => {
-  ctx.lineWidth = width;
-  ctx.beginPath();
-  ctx.moveTo(points[0], points[1]);
-  for (let i = 2; i < points.length; i += 2)
-    ctx.lineTo(points[i], points[i + 1]);
-  ctx.stroke();
-};
-
-/** `</>` */
-const code = drawn((ctx) => {
-  line(ctx, 20, [86, 68, 30, 120, 86, 172]);
-  line(ctx, 20, [142, 48, 98, 192]);
-  line(ctx, 20, [154, 68, 210, 120, 154, 172]);
-});
-
-/** A page: outline, a heavier title line, and lines of text. */
-const page = drawn((ctx) => {
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.roundRect(48, 22, 144, 196, 16);
-  ctx.stroke();
-  line(ctx, 15, [74, 62, 138, 62]);
-  line(ctx, 8, [74, 100, 166, 100]);
-  line(ctx, 8, [74, 126, 166, 126]);
-  line(ctx, 8, [74, 152, 166, 152]);
-  line(ctx, 8, [74, 178, 126, 178]);
-});
-
-/**
- * The React atom, built in depth: three circles each tipped away from the
- * viewer, so head-on they flatten into the logo's three ellipses and from
- * any other angle they are visibly rings in space.
- */
-const atom: Shape = (out, count) => {
-  const squash = 0.38;
-  const depth = Math.sqrt(1 - squash * squash);
-
-  for (let i = 0; i < count; i++) {
-    if (i < count * 0.04) {
-      // Nucleus.
-      const r = 0.16 * Math.cbrt(rand());
-      const u = rand() * 2 - 1;
-      const phi = rand() * TAU;
-      const s = Math.sqrt(1 - u * u);
-      put(out, i, r * s * Math.cos(phi), r * u, r * s * Math.sin(phi), 1);
-      continue;
-    }
-    const ring = i % 3;
-    const tilt = (ring * Math.PI) / 3;
-    // One electron per ring: a tight bright knot at a fixed angle.
-    const electron = rand() < 0.035;
-    const a = electron ? ring * 2.3 + 0.6 + (rand() - 0.5) * 0.1 : rand() * TAU;
-    const r = RADIUS * (1 + (rand() - 0.5) * 0.035);
-    const along = Math.cos(a) * r;
-    const across = Math.sin(a) * r;
-    put(
-      out,
-      i,
-      Math.cos(tilt) * along - Math.sin(tilt) * squash * across,
-      Math.sin(tilt) * along + Math.cos(tilt) * squash * across,
-      depth * across,
-      electron ? 1 : 0,
-    );
-  }
-};
-
-/**
- * A wire globe — meridians, parallels and a little surface haze — turned so
- * Tashkent faces the viewer, with the city as a bright point inside two rings.
- */
-const globe: Shape = (out, count) => {
-  const deg = Math.PI / 180;
-  const cityLat = 41.3 * deg;
-  // Longitude is measured from the city, which sits just right of centre.
-  const cityLon = 10 * deg;
-  const at = (
-    lat: number,
-    lon: number,
-    r = RADIUS,
-  ): [number, number, number] => [
-    r * Math.cos(lat) * Math.sin(lon),
-    r * Math.sin(lat),
-    r * Math.cos(lat) * Math.cos(lon),
-  ];
-  const city = at(cityLat, cityLon, RADIUS * 1.01);
-  // Unit vectors along the surface at the city: east and north.
-  const east = [Math.cos(cityLon), 0, -Math.sin(cityLon)];
-  const north = [
-    -Math.sin(cityLat) * Math.sin(cityLon),
-    Math.cos(cityLat),
-    -Math.sin(cityLat) * Math.cos(cityLon),
-  ];
-
-  for (let i = 0; i < count; i++) {
-    const pick = rand();
-    if (pick < 0.05) {
-      // The city: a point, then two rings around it.
-      const which = rand();
-      const r =
-        which < 0.3 ? 0.035 * Math.sqrt(rand()) : which < 0.6 ? 0.1 : 0.19;
-      const a = rand() * TAU;
-      const e = Math.cos(a) * r;
-      const n = Math.sin(a) * r;
       put(
         out,
         i,
-        city[0] + east[0] * e + north[0] * n,
-        city[1] + east[1] * e + north[1] * n,
-        city[2] + east[2] * e + north[2] * n,
-        1,
+        x * RADIUS * 1.1,
+        y * RADIUS * 1.1,
+        (rand() - 0.5) * 0.22,
+        data[p * 4] > 128 ? 1 : 0,
       );
-    } else if (pick < 0.5) {
-      // Meridians every 15°.
-      const lon = Math.floor(rand() * 24) * 15 * deg;
-      put(out, i, ...at((rand() - 0.5) * Math.PI, lon));
-    } else if (pick < 0.82) {
-      // Parallels every 20°. Rejection keeps the dots evenly spaced along
-      // each line: short circles near the poles get fewer of them.
-      let lat = 0;
-      do {
-        lat = (Math.floor(rand() * 7) - 3) * 20 * deg;
-      } while (rand() > Math.cos(lat));
-      put(out, i, ...at(lat, rand() * TAU));
-    } else {
-      put(out, i, ...at(Math.asin(rand() * 2 - 1), rand() * TAU));
     }
-  }
-};
+  };
 
-/** The order the cloud cycles through. hero-scene.tsx captions follow it. */
-const SHAPES: Shape[] = [code, atom, globe, page];
+/** The mark, with the dot of the "i" in the accent. */
+const mark = drawn((ctx, size) => {
+  const { x, y, size: span, dot, stem, two, twoWidth } = I2_MARK;
+  const s = size / span;
+  ctx.setTransform(s, 0, 0, s, -x * s, -y * s);
 
-const TRANSITION_SECONDS = 1.5;
-/** How long a finished shape stays before the cloud moves on by itself. */
-const HOLD_SECONDS = 4.5;
-/** Camera distance that frames a shape in a landscape canvas. */
+  ctx.fillStyle = ctx.strokeStyle = "#00f";
+  ctx.fill(new Path2D(stem));
+  ctx.lineWidth = twoWidth;
+  ctx.lineJoin = "round";
+  ctx.stroke(new Path2D(two));
+
+  ctx.fillStyle = "#f00";
+  ctx.beginPath();
+  ctx.arc(dot.cx, dot.cy, dot.r, 0, TAU);
+  ctx.fill();
+});
+
+/** Seconds for the cloud to gather into the mark. */
+const GATHER_SECONDS = 1.6;
+/** Seconds for a burst to fly apart, and how long it hangs there. */
+const BURST_SECONDS = 0.9;
+const BURST_HOLD_SECONDS = 0.25;
+/** Camera distance that frames the mark in a square canvas. */
 const CAMERA_DISTANCE = 5.8;
 
 const isDark = () => document.documentElement.classList.contains("dark");
 
 export type HeroSceneHandle = {
-  /** Asks the cloud to take the shape at `index`. */
-  show(index: number): void;
-  /** Asks the cloud to move on to the shape after the current one. */
-  next(): void;
+  /** Bursts the mark apart; it gathers again by itself. */
+  burst(): void;
   /** Stops the scene and frees its GPU resources. */
   dispose(): void;
 };
 
 /**
  * Starts the scene on `canvas`. Throws if a WebGL context cannot be created;
- * the caller keeps its static fallback in that case. `onShape` fires with
- * the index of each shape as the cloud starts toward it, the first included.
+ * the caller keeps its static fallback in that case.
  */
-export function mountHeroScene(
-  canvas: HTMLCanvasElement,
-  onShape: (index: number) => void,
-): HeroSceneHandle {
+export function mountHeroScene(canvas: HTMLCanvasElement): HeroSceneHandle {
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -333,7 +230,7 @@ export function mountHeroScene(
   const camera = new PerspectiveCamera(35, 1, 0.1, 20);
   let cameraRest = CAMERA_DISTANCE;
 
-  // Phones get half the particles; the shapes read the same at their size.
+  // Phones get half the particles; the mark reads the same at their size.
   const count = finePointer ? 11000 : 5500;
   const shaped = Math.floor(count * (1 - DUST_SHARE));
 
@@ -343,8 +240,7 @@ export function mountHeroScene(
   for (let i = 0; i < count; i++) seeds[i] = rand();
 
   scatter(from, shaped);
-  // The dust: a wide, shallow shell that is the same in every shape, so
-  // these particles never travel.
+  // The dust: a wide, shallow shell that never travels.
   for (let i = shaped; i < count; i++) {
     const u = rand() * 2 - 1;
     const phi = rand() * TAU;
@@ -405,23 +301,21 @@ export function mountHeroScene(
   };
   syncBlending();
 
-  // The shape the cloud is in or travelling to, and the one asked for.
-  // They differ while a flight is in progress: the origin buffer is in use
-  // until the cloud lands, so a new request waits for that.
-  let shape = -1;
-  let wanted = 0;
-  let held = 0;
+  // A flight in progress owns the origin buffer until it lands, so after a
+  // burst the return to the mark waits in `queued` for that.
+  let duration = GATHER_SECONDS;
+  let queued = false;
+  let landedFor = 0;
 
-  const morph = () => {
-    shape = wanted;
+  const morph = (shape: Shape, seconds: number) => {
     // What was the destination becomes the origin.
     from.set(to);
-    SHAPES[shape](to, shaped);
+    shape(to, shaped);
     fromAttribute.needsUpdate = true;
     toAttribute.needsUpdate = true;
     uniforms.uProgress.value = reducedMotion ? 1 : 0;
-    held = 0;
-    onShape(shape);
+    duration = seconds;
+    landedFor = 0;
   };
 
   const pointer = { x: 0, y: 0, tiltX: 0, tiltY: 0, present: false };
@@ -453,15 +347,14 @@ export function mountHeroScene(
     if (uniforms.uProgress.value < 1) {
       uniforms.uProgress.value = Math.min(
         1,
-        uniforms.uProgress.value + dt / TRANSITION_SECONDS,
+        uniforms.uProgress.value + dt / duration,
       );
-    } else if (wanted !== shape) {
-      morph();
-    } else if ((held += dt) > HOLD_SECONDS) {
-      wanted = (shape + 1) % SHAPES.length;
+    } else if (queued && (landedFor += dt) > BURST_HOLD_SECONDS) {
+      queued = false;
+      morph(mark, GATHER_SECONDS);
     }
     // The camera pulls back while the cloud is in pieces and closes in
-    // again as the next shape forms.
+    // again as the mark forms.
     camera.position.z =
       cameraRest + Math.sin(uniforms.uProgress.value * Math.PI) * 0.9;
 
@@ -469,8 +362,8 @@ export function mountHeroScene(
       ((pointer.present ? 1 : 0) - uniforms.uPull.value) * ease;
     (uniforms.uPointer.value as Vector2).set(pointer.x, pointer.y);
 
-    // A slow sway shows the depth of each shape without ever turning the
-    // flat ones edge-on; the pointer leans it a little further.
+    // A slow sway shows the depth of the mark without ever turning it
+    // edge-on; the pointer leans it a little further.
     pointer.tiltX += (pointer.x - pointer.tiltX) * ease * 0.5;
     pointer.tiltY += (pointer.y - pointer.tiltY) * ease * 0.5;
     const time = uniforms.uTime.value;
@@ -499,7 +392,7 @@ export function mountHeroScene(
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     // In a portrait canvas the width is what runs out, so stand further
-    // back until the shape fits across it.
+    // back until the mark fits across it.
     cameraRest = Math.max(CAMERA_DISTANCE, 5.4 / camera.aspect);
     camera.position.z = cameraRest;
     uniforms.uAspect.value = camera.aspect;
@@ -535,22 +428,16 @@ export function mountHeroScene(
     window.addEventListener("pointermove", onPointerMove, { passive: true });
   }
 
-  morph();
-
-  const show = (index: number) => {
-    if (!SHAPES[index]) return;
-    wanted = index;
-    // With reduced motion there is no loop to pick the request up, and no
-    // flight to wait for: the new shape simply appears.
-    if (reducedMotion && wanted !== shape) {
-      morph();
-      draw();
-    }
-  };
+  morph(mark, GATHER_SECONDS);
 
   return {
-    show,
-    next: () => show((shape + 1) % SHAPES.length),
+    burst() {
+      // Only from a finished mark: mid-flight there is nothing to burst,
+      // and with reduced motion there is no flight to show.
+      if (reducedMotion || queued || uniforms.uProgress.value < 1) return;
+      morph(burst, BURST_SECONDS);
+      queued = true;
+    },
     dispose() {
       setRunning(false);
       resizeObserver.disconnect();
