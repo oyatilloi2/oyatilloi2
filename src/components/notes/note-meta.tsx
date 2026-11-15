@@ -1,7 +1,7 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 import { site } from "@/config/site";
 
-export async function PostMeta({
+export async function NoteMeta({
   date,
   readingTime,
 }: {
@@ -9,7 +9,7 @@ export async function PostMeta({
   readingTime: number;
 }) {
   const format = await getFormatter();
-  const t = await getTranslations("Blog");
+  const t = await getTranslations("Notes");
 
   // The date and the reading time are interface text, so they keep the
   // interface language even inside an article written in another one.

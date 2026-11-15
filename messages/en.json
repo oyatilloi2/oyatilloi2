@@ -1,29 +1,27 @@
 {
   "Site": {
-    "description": "A blog by Oyatillo Abdishukurov about frontend engineering — React, Next.js, TypeScript and the lessons from building real products."
+    "description": "Oyatillo Abdishukurov is a software engineer in Tashkent, Uzbekistan, building for the web with React, Next.js and TypeScript."
   },
   "Nav": {
-    "blog": "Blog"
+    "label": "Main",
+    "home": "Home",
+    "notes": "Notes",
+    "resume": "Resume"
   },
-  "Blog": {
-    "title": "Blog",
-    "description": "Notes on building software.",
-    "empty": "No posts yet.",
+  "Notes": {
+    "title": "Notes",
+    "description": "Short notes on things I learn while building.",
+    "empty": "No notes yet.",
     "readingTime": "{minutes, number} min read"
   },
   "ThemeToggle": {
     "label": "Toggle theme"
   },
   "HomePage": {
-    "scene": {
-      "code": "Frontend engineer",
-      "atom": "React · Next.js · TypeScript",
-      "globe": "Based in Tashkent",
-      "page": "Writing about what I learn"
-    },
-    "about": "Hi, I'm Oyatillo — a frontend engineer in Tashkent. I spend my days in React, Next.js and TypeScript, building the kind of interfaces people work in all day. This is where I write about it: the bugs that taught me something, the tricks that made an app faster, and the things I wish someone had explained to me earlier.",
-    "latest": "Latest posts",
-    "viewAll": "All posts"
+    "role": "Software Engineer · Tashkent",
+    "about": "Hi, I'm Oyatillo — a software engineer in Tashkent. I build things for the web, mostly with React, Next.js and TypeScript, and I like software that feels fast and quiet.",
+    "latest": "Latest notes",
+    "viewAll": "All notes"
   },
   "Social": {
     "linkedin": "LinkedIn",

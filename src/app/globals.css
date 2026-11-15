@@ -100,77 +100,25 @@
   }
 }
 
-/* Sticky header: the bottom border is transparent at the top of the page and
-   fades in over the first 48px of scroll. Browsers without scroll-driven
-   animations keep the border on at all times, which is the old look. */
-.site-header {
-  border-bottom: 1px solid var(--border);
-}
-@supports (animation-timeline: scroll()) {
-  .site-header {
-    border-bottom-color: transparent;
-    animation: header-border linear both;
-    animation-timeline: scroll(root);
-    animation-range: 0 48px;
-  }
-  @keyframes header-border {
-    to {
-      border-bottom-color: var(--border);
-    }
-  }
-}
-
 /* Home page hero scene. The canvas is drawn by hero-scene.webgl.ts; everything
-   here is the frame around it. See docs/adr/0005-3d-hero-scene.md. */
+   here is the frame around it. See docs/adr/0005 and docs/adr/0006. */
 
-/* Fades the canvas out toward its edges, so particles drift out of view
+/* Fades the canvas out toward its edges, so a burst drifts out of view
    instead of being cut off by the element box. */
-.hero-scene {
-  mask-image: radial-gradient(
-    ellipse 50% 50% at 50% 50%,
-    black 55%,
-    transparent 100%
-  );
-}
 .hero-scene canvas {
+  mask-image: radial-gradient(closest-side, black 60%, transparent 100%);
   opacity: 0;
+  transition: opacity 900ms ease;
+}
+/* The still hands over to the particles: one fades as the other arrives. */
+.hero-still {
   transition: opacity 900ms ease;
 }
 .hero-scene[data-ready="true"] canvas {
   opacity: 1;
 }
-
-/* What is there before the scene: a blurred disc in the same colours,
-   where the body will appear. Once the canvas is drawn it stays on at a
-   fraction of its strength, as the light the body seems to give off. */
-:root {
-  --hero-glow: 0.4;
-}
-.dark {
-  --hero-glow: 0.6;
-}
-.hero-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(60%, 20rem);
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 200deg,
-    oklch(0.72 0.17 350),
-    oklch(0.62 0.2 295),
-    oklch(0.66 0.17 255),
-    oklch(0.8 0.11 210),
-    oklch(0.72 0.17 350)
-  );
-  filter: blur(48px);
-  opacity: var(--hero-glow);
-  transition: opacity 900ms ease;
-}
-.hero-scene[data-ready="true"] .hero-glow {
-  opacity: calc(var(--hero-glow) * 0.45);
+.hero-scene[data-ready="true"] .hero-still {
+  opacity: 0;
 }
 
 /* Hero entrance: name, then description, then the links. `both` holds the
@@ -193,7 +141,7 @@
     animation: none;
   }
   .hero-scene canvas,
-  .hero-glow {
+  .hero-still {
     transition: none;
   }
 }

@@ -14,7 +14,7 @@ export function Comments() {
   const [visible, setVisible] = useState(false);
 
   // The giscus script and iframe are only fetched once the reader is near
-  // the end of the post, so they never compete with the article itself.
+  // the end of the note, so they never compete with the article itself.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

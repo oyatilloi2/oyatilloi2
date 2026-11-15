@@ -4,7 +4,8 @@ Date: 2026-11-10
 
 ## Status
 
-Accepted
+Accepted. Amended by [0006. Personal home redesign](0006-personal-home-redesign.md):
+one shape, the site's own colours, beside the text.
 
 Amends [0004. Single blue accent](0004-single-blue-accent.md): replaces
 its home page background, and retints the dark neutrals.

@@ -6,9 +6,9 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
 import { z } from "zod";
 
-const posts = defineCollection({
-  name: "posts",
-  directory: "content/posts",
+const notes = defineCollection({
+  name: "notes",
+  directory: "content/notes",
   include: "**/*.mdx",
   schema: z.object({
     title: z.string().min(1),
@@ -53,5 +53,5 @@ const posts = defineCollection({
 });
 
 export default defineConfig({
-  content: [posts],
+  content: [notes],
 });
